@@ -1,0 +1,15 @@
+主页里面 打开段子子页url的位置
+
+	开头：<h1 class="dp-b"><a href="
+	结尾：" target="_blank">
+
+
+段子子页面
+	取标题
+		有两个h标签，只取第一个。
+		<h1>标题</h1>
+		<h1>无关项</h1>
+
+	取内容
+		开始：<div class="content-txt pt10"> 
+		结束：<a id="prev"<a id="prev" href="
