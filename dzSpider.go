@@ -4,8 +4,10 @@ import (
 	"fmt"
 	//"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -33,7 +35,9 @@ func SpiderOneJoy(url string) (title, content string, err error) {
 	//取标题内容
 	tmpTitle := rel.FindAllStringSubmatch(rst, 1) //最后一个参数为1，只过滤第一个
 	for _, data := range tmpTitle {
+
 		title = data[1]
+		title = strings.Replace(title, "\t", "", -1)
 		break
 	}
 
@@ -46,6 +50,10 @@ func SpiderOneJoy(url string) (title, content string, err error) {
 	tmpContent := rel2.FindAllStringSubmatch(rst, -1) //最后一个参数为1，只过滤第一个
 	for _, data := range tmpContent {
 		content = data[1]
+		content = strings.Replace(content, "\t", "", -1)
+		content = strings.Replace(content, "<br />", "", -1)
+		content = strings.Replace(content, "\n", "", -1)
+		content = strings.Replace(content, "&nbsp;", "", -1)
 		break
 	}
 	return
@@ -54,14 +62,34 @@ func SpiderOneJoy(url string) (title, content string, err error) {
 
 func DoWork(start int, end int) {
 	fmt.Printf("正在爬取第%d页到第%d页的网址\n", start, end)
+	page := make(chan int)
 
 	for i := start; i <= end; i++ {
 		//定义一个函数、爬取主页面
-		SpiderPage(i)
+		go SpiderPage(i, page)
+	}
+	for i := start; i <= end; i++ {
+		fmt.Printf("第 %d 个页面爬取完成", <-page)
 	}
 }
 
-func SpiderPage(i int) {
+func StoreJoyToFile(i int, fileTitle, fileContent []string) {
+	file, err5 := os.Create(strconv.Itoa(i) + ".txt")
+	if err5 != nil {
+		fmt.Println("os.Create", err5)
+		return
+	}
+	defer file.Close()
+	n := len(fileContent)
+	for i := 0; i < n; i++ {
+		file.Write([]byte(fileTitle[i] + " :\r\n"))
+		file.Write([]byte(fileContent[i] + "\r\n"))
+		file.Write([]byte("*************************************************************\r\n"))
+
+	}
+
+}
+func SpiderPage(i int, page chan int) {
 	//爬取的url
 	url := "https://www.pengfu.com/xiaohua_" + strconv.Itoa(i) + ".html"
 	fmt.Printf("正在爬取第%d个页面：%s\n", i, url)
@@ -79,6 +107,8 @@ func SpiderPage(i int) {
 
 	//取关键信息
 	joyUrls := re.FindAllStringSubmatch(rst, -1)
+	fileTitle := make([]string, 0)
+	fileContent := make([]string, 0)
 
 	//从关键信息中过滤出子url
 	for _, data := range joyUrls {
@@ -89,9 +119,16 @@ func SpiderPage(i int) {
 			fmt.Println("SpiderOneJoy(data[1]) err=", err2)
 			return
 		}
-		fmt.Println("title=", title)
-		fmt.Println("content=", content)
+		//fmt.Println("title= ", title)
+		//fmt.Println("content= ", content)
+		fileTitle = append(fileTitle, title)
+		fileContent = append(fileContent, content)
+
 	}
+	fmt.Printf("本页共搜集到 %d 条\n", len(fileTitle)) //追加内容
+
+	StoreJoyToFile(i, fileTitle, fileContent)
+	page <- i
 
 }
 func HttpGet(url string) (rst string, err error) {
